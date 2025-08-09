@@ -1,0 +1,10 @@
+# Cache and temporary files
+.cache/
+.npm/
+.gemini/
+
+# Storage symlinks
+storage/
+
+# Copied binaries
+bin/
