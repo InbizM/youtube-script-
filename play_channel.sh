@@ -2,7 +2,6 @@
 
 # --- CONFIGURACIÓN ---
 CHANNEL_URL_BASE="https://youtube.com/@metaldoradocrypto"
-PLAY_SHORT_EVERY=10 # Reproducir un short cada 10 videos normales
 
 # --- FUNCIONES ---
 
@@ -53,54 +52,46 @@ run_test() {
 
 # --- LÓGICA PRINCIPAL DEL SCRIPT ---
 
+# Función para obtener y barajar todos los videos (normales y shorts)
+get_shuffled_videos() {
+    echo "Obteniendo y barajando todos los videos del canal..."
+    
+    # Obtener videos normales y shorts, combinarlos y barajarlos
+    (yt-dlp --flat-playlist -j "$CHANNEL_URL_BASE/videos" 2>/dev/null; \
+     yt-dlp --flat-playlist -j "$CHANNEL_URL_BASE/shorts" 2>/dev/null) | \
+    jq -c ". | select(.duration) | {url: .url, duration: (.duration|round), title: .title}" | \
+    shuf
+}
+
+
 # 1. Ejecutar la prueba rápida
 run_test
 
-# 2. Continuar con la lógica normal del canal
-echo "Obteniendo lista de shorts para reproducción aleatoria..."
-SHORTS_DATA=$(yt-dlp --flat-playlist -j "$CHANNEL_URL_BASE/shorts" 2>/dev/null | jq -c '. | select(.duration) | {url: .url, duration: (.duration|round), title: .title}')
-NUM_SHORTS=$(echo "$SHORTS_DATA" | wc -l)
+# 2. Bucle de reproducción infinita
+while true; do
+    echo "Iniciando un nuevo ciclo de reproducción..."
+    SHUFFLED_VIDEOS=$(get_shuffled_videos)
+    
+    if [ -z "$SHUFFLED_VIDEOS" ]; then
+        echo "No se encontraron videos o hubo un error. Esperando 60 segundos para reintentar..."
+        sleep 60
+        continue
+    fi
 
-if [ "$NUM_SHORTS" -eq 0 ]; then
-    echo "Advertencia: No se encontraron shorts en el canal."
-fi
+    echo "Lista de reproducción creada. Empezando a reproducir..."
+    
+    echo "$SHUFFLED_VIDEOS" | while IFS= read -r line; do
+        # Extraer datos del video
+        URL=$(echo "$line" | jq -r ".url")
+        DURATION=$(echo "$line" | jq -r ".duration")
+        TITLE=$(echo "$line" | jq -r ".title")
 
-echo "Obteniendo información de los videos normales del canal..."
-VIDEO_COUNTER=0
-
-# Procesamos solo los videos normales en este bucle
-yt-dlp --flat-playlist -j "$CHANNEL_URL_BASE/videos" 2>/dev/null | \
-    jq -c '. | select(.duration) | {url: .url, duration: (.duration|round), title: .title}' | \
-    while IFS= read -r line; do
-        VIDEO_COUNTER=$((VIDEO_COUNTER + 1))
-
-        # Extraer datos del video normal
-        URL=$(echo "$line" | jq -r '.url')
-        DURATION=$(echo "$line" | jq -r '.duration')
-        TITLE=$(echo "$line" | jq -r '.title')
-
-        # Reproducir el video normal
+        # Reproducir el video
         play_video "$TITLE" "$URL" "$DURATION"
-
-        # Comprobar si es hora de un short aleatorio
-        if (( VIDEO_COUNTER % PLAY_SHORT_EVERY == 0 )) && [ "$NUM_SHORTS" -gt 0 ]; then
-            echo
-            echo "¡BONUS: Reproduciendo un short aleatorio!"
-            
-            # Elegir un short al azar
-            RANDOM_LINE_NUM=$(( (RANDOM % NUM_SHORTS) + 1 ))
-            RANDOM_SHORT_DATA=$(echo "$SHORTS_DATA" | sed -n "${RANDOM_LINE_NUM}p")
-
-            # Extraer datos del short
-            SHORT_URL=$(echo "$RANDOM_SHORT_DATA" | jq -r '.url')
-            SHORT_DURATION=$(echo "$RANDOM_SHORT_DATA" | jq -r '.duration')
-            SHORT_TITLE=$(echo "$RANDOM_SHORT_DATA" | jq -r '.title')
-
-            # Reproducir el short
-            play_video "Short Aleatorio: $SHORT_TITLE" "$SHORT_URL" "$SHORT_DURATION"
-            echo "Continuando con los videos normales..."
-            echo
-        fi
     done
 
-echo "¡Todos los videos del canal se han reproducido!"
+    echo "¡Todos los videos de esta ronda se han reproducido!"
+    echo "Reiniciando el ciclo para volver a reproducir en orden aleatorio..."
+    sleep 5
+done
+
