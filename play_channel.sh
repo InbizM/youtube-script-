@@ -57,10 +57,7 @@ get_shuffled_videos() {
     echo "Obteniendo y barajando todos los videos del canal..."
     
     # Obtener videos normales y shorts, combinarlos y barajarlos
-    (yt-dlp --flat-playlist -j "$CHANNEL_URL_BASE/videos" 2>/dev/null; \
-     yt-dlp --flat-playlist -j "$CHANNEL_URL_BASE/shorts" 2>/dev/null) | \
-    jq -c ". | select(.duration) | {url: .url, duration: (.duration|round), title: .title}" | \
-    shuf
+    (yt-dlp --flat-playlist -j "$CHANNEL_URL_BASE/videos" 2>/dev/null;     yt-dlp --flat-playlist -j "$CHANNEL_URL_BASE/shorts" 2>/dev/null) |     jq -c ". | select(.duration and .duration <= 600) | {url: .url, duration: (.duration|round), title: .title}" |     shuf
 }
 
 
