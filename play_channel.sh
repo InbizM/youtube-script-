@@ -5,6 +5,13 @@ CHANNEL_URL_BASE="https://youtube.com/@metaldoradocrypto"
 
 # --- FUNCIONES ---
 
+# Función para obtener un TinyURL
+get_tiny_url() {
+    local LONG_URL=$1
+    local TINY_URL=$(curl -s "https://tinyurl.com/api-create.php?url=$LONG_URL")
+    echo "$TINY_URL"
+}
+
 # Función para reproducir un video (normal, short o prueba)
 play_video() {
     local TITLE=$1
@@ -16,8 +23,12 @@ play_video() {
     echo "URL: $URL"
     echo "Duración (según yt-dlp): $DURATION segundos"
 
-    # Abrir la URL en YouTube
-    termux-open-url "$URL"
+    # Obtener TinyURL
+    TINY_URL=$(get_tiny_url "$URL")
+    echo "TinyURL: $TINY_URL"
+
+    # Abrir la TinyURL en el navegador
+    termux-open-url "$TINY_URL"
 
     # Calcular tiempo de espera
     WAIT_TIME=$((DURATION + 2))
